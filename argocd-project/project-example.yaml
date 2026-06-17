@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: project-name # <--- Adjust here
+  namespace: argocd
+spec:
+  description: Project description
+  sourceRepos:
+    - 'https://github.com/organisasi-anda/frontend-repo.git'
+  
+  destinations:
+    - namespace: '*' # <--- Adjust here, or "*" for all namespace
+      server: https://kubernetes.default.svc
+  
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

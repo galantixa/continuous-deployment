@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: service-name # <--- Adjust here
+  namespace: argocd
+spec:
+  project: project-name # <--- Adjust here
+  
+  source:
+    repoURL: 'https://repo.com/username/service-repo.git' # <--- Adjust here
+    targetRevision: main # <--- Adjust here
+    path: k8s-manifests/service-name # <--- Adjust here
+    helm:
+      releaseName: service-name # <--- Adjust here
+      valueFiles:
+        - values-development-example.yaml # <--- Adjust here
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: service-namespace # <--- Adjust here
+  
+  syncPolicy:
+    automated:
+      prune: true 
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

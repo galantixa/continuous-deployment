@@ -1,0 +1,223 @@
+# =============================================================================
+# These values feed the `common.*` named templates from the `common`
+# library chart (see templates/all.yaml).
+# =============================================================================
+
+nameOverride: ""
+fullnameOverride: ""
+
+# =============================================================================
+# IMAGE
+# =============================================================================
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "latest" # Menggunakan image nginx:latest
+
+imagePullSecrets: []
+# - name: ghcr-secret
+
+# =============================================================================
+# REPLICAS & STRATEGY
+# =============================================================================
+replicaCount: 2
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# =============================================================================
+# SERVICE ACCOUNT
+# =============================================================================
+serviceAccount:
+  create: true
+  annotations: {}
+  automountServiceAccountToken: false
+  name: ""
+
+# =============================================================================
+# POD-LEVEL CONFIG
+# =============================================================================
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  # Nginx bawaan membutuhkan akses root untuk berjalan
+  runAsNonRoot: false
+  # runAsUser: 1000
+  # runAsGroup: 1000
+  # fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector: {}
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - '{{ include "common.name" . }}'
+          topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints: []
+priorityClassName: ""
+terminationGracePeriodSeconds: 60
+
+# =============================================================================
+# CONTAINER-LEVEL CONFIG
+# =============================================================================
+securityContext:
+  allowPrivilegeEscalation: false
+  # Nginx butuh menulis ke /var/cache/nginx dan /var/run, jadi ini harus false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# =============================================================================
+# PROBES
+# =============================================================================
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: / # Diubah ke / karena Nginx tidak punya /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: / # Diubah ke / karena Nginx tidak punya /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+startupProbe:
+  enabled: false
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 0
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+# =============================================================================
+# SERVICE  ->  common.service
+# =============================================================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80 # Diubah ke 80 karena Nginx berjalan di port 80
+  protocol: TCP
+  additionalPorts: []
+  annotations: {}
+
+# =============================================================================
+# INGRESS  ->  common.ingress
+# =============================================================================
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: pg-fds-be.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# =============================================================================
+# AUTOSCALING  ->  common.hpa
+# =============================================================================
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  customMetrics: []
+
+# =============================================================================
+# CONFIGMAP  ->  common.configmap
+# =============================================================================
+configMap:
+  enabled: true
+  data:
+    APP_ENV: production
+    LOG_LEVEL: info
+    LOG_FORMAT: json
+
+# =============================================================================
+# EXTERNAL SECRET  ->  common.externalsecret
+# =============================================================================
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: ""
+    creationPolicy: Owner
+    template: {}
+  data: []
+  dataFrom: []
+
+# =============================================================================
+# PERSISTENCE  ->  common.pvc
+# =============================================================================
+persistence:
+  enabled: false
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  storageClassName: ""
+  mountPath: /data
+  annotations: {}
+
+# =============================================================================
+# VIRTUAL SERVICE (Istio)  ->  common.virtualservice
+# =============================================================================
+virtualService:
+  enabled: false
+  gateways:
+    - istio-system/main-gateway
+  hosts:
+    - pg-fds-be.example.com
+  http: []
+
+# =============================================================================
+# ADVANCED WORKLOAD PATTERNS
+# =============================================================================
+extraEnv: []
+extraEnvFrom: []
+initContainers: []
+sidecars: []
+extraVolumes: []
+extraVolumeMounts: []
+extraContainerPorts: []
